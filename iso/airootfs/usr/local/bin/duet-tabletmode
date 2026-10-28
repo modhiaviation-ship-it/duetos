@@ -1,0 +1,41 @@
+#!/bin/bash
+# duet-tabletmode: decides laptop vs tablet mode and shows/hides the on-screen keyboard.
+# Tablet mode = the firmware's tablet-mode switch says so, or (if there is no switch)
+# no external USB/Bluetooth keyboard is present (the pogo keyboard enumerates as USB).
+RUN=$XDG_RUNTIME_DIR
+SWITCH=""   # last tablet-mode switch state from libinput, if the device has one
+
+keyboard_present() {
+    local d props
+    for d in /sys/class/input/event*; do
+        props=$(udevadm info -q property -p "$d" 2>/dev/null)
+        grep -q '^ID_INPUT_KEYBOARD=1' <<<"$props" || continue
+        grep -qE '^ID_BUS=(usb|bluetooth)' <<<"$props" && return 0
+    done
+    return 1
+}
+
+evaluate() {
+    local t
+    if [ -n "$SWITCH" ]; then t=$SWITCH
+    elif keyboard_present; then t=0
+    else t=1
+    fi
+    [ "$(cat "$RUN/duet-tablet" 2>/dev/null)" = "$t" ] && return
+    echo "$t" >"$RUN/duet-tablet"
+    if [ "$t" = 1 ]; then duet-osk show; else duet-osk hide; fi
+    duet-rotate --refresh
+}
+
+rm -f "$RUN/duet-tablet"
+sleep 2
+evaluate
+
+# One libinput process reports device hot-plug (pogo keyboard) and switch events.
+stdbuf -oL libinput debug-events 2>/dev/null | while read -r line; do
+    case $line in
+        *SWITCH_TOGGLE*tablet-mode*state\ 1*) SWITCH=1; evaluate ;;
+        *SWITCH_TOGGLE*tablet-mode*state\ 0*) SWITCH=0; evaluate ;;
+        *DEVICE_ADDED*|*DEVICE_REMOVED*) sleep 0.5; evaluate ;;
+    esac
+done

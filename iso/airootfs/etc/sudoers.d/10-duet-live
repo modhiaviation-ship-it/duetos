@@ -1,0 +1,2 @@
+# Live session only; the installer removes this file.
+duet ALL=(ALL:ALL) NOPASSWD: ALL

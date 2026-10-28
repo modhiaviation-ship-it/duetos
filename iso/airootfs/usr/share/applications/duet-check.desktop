@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=DuetOS Health Check
+Comment=Drivers, video decode, RAM, boot time and power report
+Exec=foot -T "DuetOS check" sh -c "duet-check; echo; read -p 'Press Enter to close' x"
+Icon=utilities-system-monitor
+Categories=System;

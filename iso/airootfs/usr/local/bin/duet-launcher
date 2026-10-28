@@ -1,0 +1,7 @@
+#!/bin/bash
+# App drawer: touch-friendly grid (nwg-drawer) if installed, fuzzel otherwise. Tapping again closes it.
+if command -v nwg-drawer >/dev/null; then
+    pkill -x nwg-drawer || exec nwg-drawer -is 80 -c 5 -spacing 24 -nofs -ovl
+else
+    pkill -x fuzzel || exec fuzzel
+fi

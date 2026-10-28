@@ -1,0 +1,150 @@
+#!/bin/bash
+# duet-power: adaptive power profiles for the Duet 3 (no daemon).
+#
+#   duet-power auto          pick from AC / battery level (run by udev + timer)
+#   duet-power performance | balanced | powersave
+#                            force a profile until you go back to auto
+#   duet-power cycle         auto -> performance -> balanced -> powersave -> auto
+#   duet-power status        one line, for humans
+#   duet-power waybar        JSON for the panel button
+#
+# Profiles:
+#   performance  AC: EPP=performance, full 2.8 GHz burst, Wi-Fi power save off
+#   balanced     battery: EPP=balance_performance (fast bursts, race to idle), power save on
+#   powersave    battery <= 20%: EPP=power, max 60% clock, brightness capped at 30%
+# Never touches voltages, RAPL limits, thermal trips, EC or firmware.
+
+STATE=/run/duet-power
+OVERRIDE=$STATE/override
+CURRENT=$STATE/current
+LOW_BATTERY=20
+
+on_ac() {
+    local p
+    for p in /sys/class/power_supply/*; do
+        [ "$(cat "$p/type" 2>/dev/null)" = Battery ] && continue
+        [ "$(cat "$p/online" 2>/dev/null)" = 1 ] && return 0
+    done
+    return 1
+}
+
+battery_pct() {
+    local p
+    for p in /sys/class/power_supply/*; do
+        if [ "$(cat "$p/type" 2>/dev/null)" = Battery ] && [ -r "$p/capacity" ]; then
+            cat "$p/capacity"; return
+        fi
+    done
+    echo 100
+}
+
+w() { [ -w "$1" ] && echo "$2" >"$1" 2>/dev/null; }   # write if the knob exists
+
+apply() {
+    local prof=$1 epp max_pct gov aspm wifi_ps cpu f
+
+    case $prof in
+        performance) epp=performance;         max_pct=100; gov=performance; aspm=default;           wifi_ps=off ;;
+        balanced)    epp=balance_performance; max_pct=100; gov=schedutil;   aspm=powersave;         wifi_ps=on  ;;
+        powersave)   epp=power;               max_pct=60;  gov=schedutil;   aspm=powersupersave;    wifi_ps=on  ;;
+    esac
+
+    # Turbo/burst always allowed (intel_pstate).
+    w /sys/devices/system/cpu/intel_pstate/no_turbo 0
+
+    for cpu in /sys/devices/system/cpu/cpu[0-9]*/cpufreq; do
+        if [ -e "$cpu/energy_performance_preference" ]; then
+            # HWP present: governor 'powersave' is intel_pstate's dynamic mode; EPP does the tuning.
+            w "$cpu/scaling_governor" powersave
+            w "$cpu/energy_performance_preference" "$epp"
+        else
+            # No HWP (acpi-cpufreq or passive mode): use a classic governor.
+            w "$cpu/scaling_governor" "$gov"
+        fi
+        # Cap max frequency (works with every driver).
+        if [ -r "$cpu/cpuinfo_max_freq" ]; then
+            f=$(( $(cat "$cpu/cpuinfo_max_freq") * max_pct / 100 ))
+            w "$cpu/scaling_max_freq" "$f"
+        fi
+    done
+
+    # PCIe link power management (fails harmlessly if firmware owns ASPM).
+    w /sys/module/pcie_aspm/parameters/policy "$aspm"
+
+    # Runtime PM: let idle PCI/I2C devices sleep. USB too, except input devices,
+    # so the pogo keyboard/touchpad never drop the first keystroke after idle.
+    for f in /sys/bus/pci/devices/*/power/control /sys/bus/i2c/devices/*/power/control; do
+        w "$f" auto
+    done
+    for d in /sys/bus/usb/devices/*; do
+        [ -e "$d/power/control" ] || continue
+        if grep -qs '^03$' "$d"/*/bInterfaceClass; then
+            w "$d/power/control" on
+        else
+            w "$d/power/control" auto
+            w "$d/power/autosuspend_delay_ms" 2000
+        fi
+    done
+
+    # Audio codec power save (HDA only; SOF manages its own runtime PM).
+    w /sys/module/snd_hda_intel/parameters/power_save 1
+
+    # Wi-Fi power save.
+    if command -v iw >/dev/null; then
+        for f in /sys/class/net/*/wireless; do
+            iw dev "$(basename "$(dirname "$f")")" set power_save "$wifi_ps" 2>/dev/null
+        done
+    fi
+
+    # Low battery: cap brightness at 30% (never raises it).
+    if [ "$prof" = powersave ]; then
+        for b in /sys/class/backlight/*; do
+            local max cur cap
+            max=$(cat "$b/max_brightness"); cur=$(cat "$b/brightness"); cap=$(( max * 30 / 100 ))
+            [ "$cur" -gt "$cap" ] && w "$b/brightness" "$cap"
+        done
+    fi
+
+    echo "$prof" >"$CURRENT"
+    # Refresh the panel button (signal 8 = custom/power in waybar).
+    pkill -RTMIN+8 -x waybar 2>/dev/null
+    true
+}
+
+choose_auto() {
+    if on_ac; then echo performance
+    elif [ "$(battery_pct)" -le "$LOW_BATTERY" ]; then echo powersave
+    else echo balanced
+    fi
+}
+
+mkdir -p "$STATE"
+cmd=${1:-auto}
+
+case $cmd in
+    auto)
+        if [ -s "$OVERRIDE" ]; then apply "$(cat "$OVERRIDE")"; else apply "$(choose_auto)"; fi ;;
+    performance|balanced|powersave)
+        echo "$cmd" >"$OVERRIDE"; apply "$cmd" ;;
+    cycle)
+        case $(cat "$OVERRIDE" 2>/dev/null) in
+            "")          next=performance ;;
+            performance) next=balanced ;;
+            balanced)    next=powersave ;;
+            *)           next=auto ;;
+        esac
+        if [ "$next" = auto ]; then rm -f "$OVERRIDE"; apply "$(choose_auto)"
+        else echo "$next" >"$OVERRIDE"; apply "$next"; fi ;;
+    status)
+        mode=auto; [ -s "$OVERRIDE" ] && mode=manual
+        echo "profile=$(cat "$CURRENT" 2>/dev/null) mode=$mode ac=$(on_ac && echo yes || echo no) battery=$(battery_pct)%" ;;
+    waybar)
+        cur=$(cat "$CURRENT" 2>/dev/null || echo balanced)
+        mode=auto; [ -s "$OVERRIDE" ] && mode=manual
+        case $cur in performance) icon="⚡";; powersave) icon="🍃";; *) icon="⚖";; esac
+        printf '{"text":"%s","tooltip":"Power: %s (%s). Tap to change.","class":"%s"}\n' "$icon" "$cur" "$mode" "$cur" ;;
+    is-battery)
+        ! on_ac ;;
+    *)
+        echo "usage: duet-power auto|performance|balanced|powersave|cycle|status|waybar" >&2; exit 2 ;;
+esac

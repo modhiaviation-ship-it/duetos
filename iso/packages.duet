@@ -1,0 +1,77 @@
+# DuetOS packages, added on top of archiso's releng list (which already has the kernel,
+# linux-firmware, intel-ucode, btrfs-progs, dosfstools, gptfdisk, rsync, arch-install-scripts).
+# Anything missing from the official repos is built from the AUR only if build-iso.sh allows it.
+
+# --- Hardware enablement ---
+linux-firmware
+sof-firmware
+alsa-ucm-conf
+alsa-utils
+intel-media-driver
+libva-intel-driver
+libva-utils
+mesa
+vulkan-intel
+iio-sensor-proxy
+evtest
+upower
+
+# --- Audio ---
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+pavucontrol
+
+# --- Network / Bluetooth ---
+networkmanager
+network-manager-applet
+bluez
+bluez-utils
+blueman
+
+# --- Desktop (labwc + touch layer) ---
+labwc
+waybar
+foot
+fuzzel
+mako
+swaybg
+swayidle
+wlr-randr
+wlopm
+wvkbd
+lisgd
+nwg-drawer
+brightnessctl
+polkit-gnome
+xdg-utils
+libnotify
+adwaita-icon-theme
+gnome-themes-extra
+noto-fonts
+noto-fonts-emoji
+ttf-dejavu
+
+# --- Apps ---
+firefox
+mpv
+yt-dlp
+pcmanfm-gtk3
+gvfs
+imv
+mousepad
+
+# --- System ---
+sudo
+zram-generator
+snapper
+snap-pac
+zstd
+powertop
+turbostat
+acpica
+i2c-tools
+msr-tools
+v4l-utils
+sbctl

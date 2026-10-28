@@ -1,0 +1,2 @@
+# Let the panel button switch power profiles without a password.
+%wheel ALL=(root) NOPASSWD: /usr/local/bin/duet-power

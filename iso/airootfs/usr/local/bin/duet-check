@@ -1,0 +1,73 @@
+#!/bin/bash
+# duet-check: verification and benchmarks.
+#   duet-check            quick health report (drivers, decode, RAM, boot, power)
+#   duet-check drain MIN  battery drain over MIN minutes (unplug first; leave it doing the task)
+#   duet-check load SEC   sustained 2-core load: logs clock, temperature, package power
+set -u
+
+bat() { for p in /sys/class/power_supply/*; do [ "$(cat "$p/type")" = Battery ] && echo "$p" && return; done; }
+B=$(bat)
+
+watts() {   # instantaneous battery power in W
+    if [ -r "$B/power_now" ]; then awk '{printf "%.2f", $1/1e6}' "$B/power_now"
+    elif [ -r "$B/current_now" ]; then awk -v c="$(cat "$B/current_now")" -v v="$(cat "$B/voltage_now")" 'BEGIN{printf "%.2f", c*v/1e12}'
+    else echo "?"; fi
+}
+energy() {  # remaining energy in Wh
+    if [ -r "$B/energy_now" ]; then awk '{printf "%.3f", $1/1e6}' "$B/energy_now"
+    else awk -v c="$(cat "$B/charge_now")" -v v="$(cat "$B/voltage_min_design")" 'BEGIN{printf "%.3f", c*v/1e12}'; fi
+}
+maxtemp() { cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | sort -n | tail -1 | awk '{printf "%.0f", $1/1000}'; }
+
+case ${1:-report} in
+report)
+    echo "== CPU"
+    echo "driver=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver) governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor) EPP=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo n/a)"
+    echo "max=$(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq)/1000 )) MHz  turbo_disabled=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null || echo n/a)"
+    duet-power status
+    echo; echo "== Memory (target: < 400 MB used at idle after login)"
+    free -m | awk 'NR<=2'
+    swapon --show
+    echo; echo "== Boot (target: < 10 s total)"
+    systemd-analyze 2>/dev/null; systemd-analyze blame 2>/dev/null | head -8
+    echo; echo "== Video decode (want H264, HEVC, VP9 VLD entries)"
+    vainfo 2>/dev/null | grep -E 'Driver version|VLD' | grep -E 'Driver|H264|HEVC|VP9' || echo "VA-API not working"
+    echo; echo "== Audio"
+    aplay -l 2>/dev/null | grep ^card || echo "no sound card"
+    echo; echo "== Sensors / tablet"
+    ls /sys/bus/iio/devices/ 2>/dev/null | tr '\n' ' '; echo
+    echo "tablet-mode=$(cat "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/duet-tablet" 2>/dev/null || echo ?)"
+    echo; echo "== Power now"
+    echo "battery=$(cat "$B/capacity")% status=$(cat "$B/status") draw=$(watts) W  hottest zone=$(maxtemp) °C"
+    echo "suspend modes: $(cat /sys/power/mem_sleep)"
+    echo; echo "== Charge limit support"
+    ls "$B"/charge_control_end_threshold 2>/dev/null || ls /sys/bus/platform/drivers/ideapad_acpi/*/conservation_mode 2>/dev/null || echo "none exposed by firmware"
+    echo; echo "== Deep idle (needs root): sudo turbostat --quiet --interval 10 --num_iterations 1"
+    ;;
+drain)
+    min=${2:-30}
+    [ "$(cat "$B/status")" = Discharging ] || { echo "Unplug the charger first."; exit 1; }
+    e0=$(energy); t0=$(date +%s); p0=$(cat "$B/capacity")
+    echo "Measuring for $min min... (start: $e0 Wh, $p0%)"
+    sleep $(( min * 60 ))
+    e1=$(energy); t1=$(date +%s); p1=$(cat "$B/capacity")
+    awk -v a="$e0" -v b="$e1" -v s=$((t1-t0)) -v p0="$p0" -v p1="$p1" -v full="$(cat "$B/energy_full" 2>/dev/null || echo 30000000)" 'BEGIN{
+        w=(a-b)/(s/3600); printf "Average draw: %.2f W  (%.1f %%/h)\n", w, (p0-p1)/(s/3600);
+        printf "Projected runtime from full: %.1f h\n", (full/1e6)/w }'
+    ;;
+load)
+    sec=${2:-300}
+    echo "2-core load for $sec s. Columns: time  MHz(cpu0)  MHz(cpu1)  hottest°C  battery-W"
+    for i in 1 2; do timeout "$sec" sh -c 'while :; do :; done' & done
+    end=$(( $(date +%s) + sec ))
+    while [ "$(date +%s)" -lt "$end" ]; do
+        printf '%4ss  %5s  %5s  %3s  %s\n' $(( sec - end + $(date +%s) )) \
+            $(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq)/1000 )) \
+            $(( $(cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq)/1000 )) \
+            "$(maxtemp)" "$(watts)"
+        sleep 5
+    done
+    wait
+    ;;
+*) echo "usage: duet-check [report | drain MINUTES | load SECONDS]" ;;
+esac

@@ -1,0 +1,10 @@
+#!/bin/bash
+# Starts the DuetOS desktop (called from ~/.bash_profile on tty1).
+export XDG_CURRENT_DESKTOP=labwc:wlroots
+export XDG_SESSION_TYPE=wayland
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM="wayland;xcb"
+export GTK_THEME=Adwaita:dark
+export XCURSOR_SIZE=32
+export _JAVA_AWT_WM_NONREPARENTING=1
+exec labwc >"${XDG_RUNTIME_DIR:-/tmp}/labwc.log" 2>&1

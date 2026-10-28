@@ -1,0 +1,2 @@
+# eMMC: mq-deadline keeps reads responsive under writes with almost no CPU cost.
+ACTION=="add|change", KERNEL=="mmcblk[0-9]", ATTR{queue/scheduler}="mq-deadline"

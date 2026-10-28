@@ -1,0 +1,2 @@
+# Re-evaluate the power profile whenever the charger or battery state changes.
+SUBSYSTEM=="power_supply", ACTION=="change", RUN+="/usr/bin/systemctl --no-block start duet-power-auto.service"

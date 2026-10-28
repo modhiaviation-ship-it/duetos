@@ -1,0 +1,6 @@
+[Unit]
+Description=DuetOS: pick power profile from AC / battery level
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/duet-power auto

@@ -1,0 +1,36 @@
+#!/bin/bash
+# Quick settings menu (top-edge swipe or panel). Big rows for fingers.
+pkill -x fuzzel && exit 0
+items="⚡  Power profile: $(duet-power status | sed 's/ ac=.*//')
+⌨  On-screen keyboard
+🔄  Auto-rotate on/off
+↻  Rotate 90°
+📶  Wi-Fi settings
+ᛒ  Bluetooth
+🔊  Sound
+🔆  Brightness 30%
+🔆  Brightness 60%
+🔆  Brightness 100%
+⏾  Suspend
+⏻  Power off
+↺  Restart"
+[ -d /run/archiso ] && items="$items
+💾  Install DuetOS to this tablet"
+
+choice=$(echo "$items" | fuzzel --dmenu --lines 14 --width 40 --font "sans:size=15" --prompt "Quick > ") || exit 0
+case $choice in
+    *"Power profile"*)   sudo -n duet-power cycle; notify-send -t 1500 "$(duet-power status)" ;;
+    *"keyboard"*)        duet-osk toggle ;;
+    *"Auto-rotate"*)     duet-rotate --toggle-auto ;;
+    *"Rotate 90"*)       duet-rotate --step ;;
+    *"Wi-Fi"*)           nm-connection-editor & ;;
+    *"Bluetooth"*)       rfkill unblock bluetooth; bluetoothctl power on >/dev/null; blueman-manager & ;;
+    *"Sound"*)           pavucontrol & ;;
+    *"30%"*)             brightnessctl -q set 30% ;;
+    *"60%"*)             brightnessctl -q set 60% ;;
+    *"100%"*)            brightnessctl -q set 100% ;;
+    *"Suspend"*)         systemctl suspend ;;
+    *"Power off"*)       systemctl poweroff ;;
+    *"Restart"*)         systemctl reboot ;;
+    *"Install"*)         foot -T "Install DuetOS" sudo duet-install & ;;
+esac

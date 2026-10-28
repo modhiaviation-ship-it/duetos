@@ -1,0 +1,7 @@
+#!/bin/bash
+# Live session only: create the passwordless 'duet' user that auto-logs in on tty1.
+set -e
+if ! id duet >/dev/null 2>&1; then
+    useradd -m -G wheel,input,video,audio -s /bin/bash duet
+    passwd -d duet >/dev/null
+fi

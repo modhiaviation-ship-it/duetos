@@ -1,0 +1,27 @@
+#!/bin/bash
+# Initial display setup: 1.5x scale; if the panel is natively portrait (many tablets are),
+# start in landscape. The rotation offset is saved in ~/.config/duet/rotate.conf.
+CONF=$HOME/.config/duet/rotate.conf
+mkdir -p "$(dirname "$CONF")"
+
+OUT=$(wlr-randr | awk '/^eDP/{print $1; exit}')
+[ -n "$OUT" ] || OUT=$(wlr-randr | awk '/^[^ ]/{print $1; exit}')
+echo "$OUT" >"$XDG_RUNTIME_DIR/duet-output"
+
+if [ ! -f "$CONF" ]; then
+    # Native mode = "current" mode line, e.g. "1200x1920 px, 60.000000 Hz (preferred, current)".
+    mode=$(wlr-randr --output "$OUT" | awk '/current/ {print $1; exit}')
+    w=${mode%x*}; h=${mode#*x}
+    base=0; [ "${w:-1}" -lt "${h:-0}" ] && base=90
+    cat >"$CONF" <<EOF
+# DuetOS rotation settings
+AUTO=1          # 1 = rotate with the accelerometer in tablet mode
+BASE=$base      # rotation (degrees) that makes the screen landscape; use the ↻ button to fix
+INVERT=0        # 1 if the screen turns the wrong way when you rotate the tablet
+TOUCH_MATRIX=1  # 0 if touch is misaligned after rotating (compositor already handles it)
+EOF
+fi
+. "$CONF"
+
+wlr-randr --output "$OUT" --scale 1.5
+duet-rotate --apply "$BASE"

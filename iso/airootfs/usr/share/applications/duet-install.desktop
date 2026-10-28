@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install DuetOS
+Comment=Erase the internal storage and install DuetOS
+Exec=foot -T "Install DuetOS" sudo duet-install
+Icon=system-software-install
+Categories=System;

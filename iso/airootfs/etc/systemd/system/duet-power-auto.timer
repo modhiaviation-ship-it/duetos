@@ -1,0 +1,10 @@
+[Unit]
+Description=DuetOS: re-check power profile (battery level crossing 20%)
+
+[Timer]
+OnBootSec=5
+OnUnitActiveSec=3min
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

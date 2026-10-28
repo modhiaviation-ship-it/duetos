@@ -1,0 +1,94 @@
+#!/bin/bash
+# duet-rotate: screen + touch rotation.
+#   duet-rotate              watch the accelerometer (runs from autostart)
+#   duet-rotate --apply DEG  set rotation now (0/90/180/270, absolute)
+#   duet-rotate --step       rotate 90° and turn auto-rotate off (panel ↻ button);
+#                            also saves the new angle as BASE when in laptop mode
+#   duet-rotate --toggle-auto
+#   duet-rotate --refresh    re-apply for the current mode (called on keyboard attach/detach)
+# Auto-rotation only happens in tablet mode; with the keyboard attached the screen stays at BASE.
+CONF=$HOME/.config/duet/rotate.conf
+RUN=$XDG_RUNTIME_DIR
+AUTO=1; BASE=0; INVERT=0; TOUCH_MATRIX=1
+[ -f "$CONF" ] && . "$CONF"
+OUT=$(cat "$RUN/duet-output" 2>/dev/null || echo eDP-1)
+RC=$HOME/.config/labwc/rc.xml
+
+setconf() { sed -i "s/^$1=[^ ]*/$1=$2/" "$CONF"; }
+
+matrix() {
+    case $1 in
+        0)   echo "1 0 0 0 1 0" ;;
+        90)  echo "0 1 0 -1 0 1" ;;
+        180) echo "-1 0 1 0 -1 1" ;;
+        270) echo "0 -1 1 1 0 0" ;;
+    esac
+}
+
+apply() {
+    local deg=$(( ($1 % 360 + 360) % 360 )) t
+    t=$deg; [ "$deg" = 0 ] && t=normal
+    wlr-randr --output "$OUT" --transform "$t"
+    echo "$deg" >"$RUN/duet-rotation"
+    if [ "$TOUCH_MATRIX" = 1 ] && [ -f "$RC" ]; then
+        sed -i "s|<calibrationMatrix>[^<]*</calibrationMatrix>|<calibrationMatrix>$(matrix "$deg")</calibrationMatrix>|" "$RC"
+        labwc --reconfigure 2>/dev/null
+    fi
+    pkill -RTMIN+9 -x waybar 2>/dev/null
+}
+
+tablet() { [ "$(cat "$RUN/duet-tablet" 2>/dev/null)" = 1 ]; }
+
+from_orientation() {
+    local o=$1 off=0
+    case $o in
+        normal)    off=0 ;;
+        left-up)   off=90 ;;
+        bottom-up) off=180 ;;
+        right-up)  off=270 ;;
+        *) return 1 ;;
+    esac
+    [ "$INVERT" = 1 ] && [ $((off % 180)) = 90 ] && off=$(( (off + 180) % 360 ))
+    echo $(( (BASE + off) % 360 ))
+}
+
+refresh() {
+    if tablet && [ "$AUTO" = 1 ]; then
+        local d; d=$(from_orientation "$(cat "$RUN/duet-orientation" 2>/dev/null)") && apply "$d"
+    else
+        apply "$BASE"
+    fi
+}
+
+case ${1:-} in
+    --apply) apply "$2"; exit ;;
+    --refresh) refresh; exit ;;
+    --toggle-auto)
+        if [ "$AUTO" = 1 ]; then setconf AUTO 0; notify-send -t 1500 "Auto-rotate off"
+        else setconf AUTO 1; AUTO=1; notify-send -t 1500 "Auto-rotate on"; refresh; fi
+        pkill -RTMIN+9 -x waybar; exit ;;
+    --step)
+        cur=$(cat "$RUN/duet-rotation" 2>/dev/null || echo "$BASE")
+        new=$(( (cur + 90) % 360 ))
+        setconf AUTO 0
+        tablet || setconf BASE "$new"
+        apply "$new"; exit ;;
+    --waybar)
+        [ "$AUTO" = 1 ] && printf '{"text":"🔄","tooltip":"Auto-rotate on (tap to lock)"}\n' \
+                        || printf '{"text":"🔒","tooltip":"Rotation locked (tap to unlock)"}\n'
+        exit ;;
+esac
+
+# Watcher. monitor-sensor prints "=== Has accelerometer (orientation: normal)" then
+# "    Accelerometer orientation changed: left-up".
+command -v monitor-sensor >/dev/null || exit 0
+monitor-sensor --accel 2>/dev/null | while read -r line; do
+    case $line in
+        *"orientation changed:"*) o=${line##*: } ;;
+        *"Has accelerometer (orientation: "*) o=${line##*orientation: }; o=${o%)} ;;
+        *) continue ;;
+    esac
+    echo "$o" >"$RUN/duet-orientation"
+    . "$CONF"
+    tablet && [ "$AUTO" = 1 ] && d=$(from_orientation "$o") && apply "$d"
+done

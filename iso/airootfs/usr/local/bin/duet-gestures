@@ -1,0 +1,20 @@
+#!/bin/bash
+# duet-gestures: touchscreen edge swipes via lisgd.
+#   swipe up from the bottom edge    -> app drawer
+#   swipe down from the top edge     -> quick settings
+#   swipe left from the right edge   -> on-screen keyboard toggle
+#   swipe right from the left edge   -> close the app drawer/menus (Escape)
+command -v lisgd >/dev/null || exit 0
+dev=""
+for d in /sys/class/input/event*; do
+    if udevadm info -q property -p "$d" 2>/dev/null | grep -q '^ID_INPUT_TOUCHSCREEN=1'; then
+        dev=/dev/input/$(basename "$d"); break
+    fi
+done
+[ -n "$dev" ] || exit 0
+# Gesture format: fingers,direction,edge,distance,actmode,command
+exec lisgd -d "$dev" -t 150 \
+    -g "1,DU,B,*,R,duet-launcher" \
+    -g "1,UD,T,*,R,duet-quick" \
+    -g "1,RL,R,*,R,duet-osk toggle" \
+    -g "1,LR,L,*,R,pkill -x nwg-drawer; pkill -x fuzzel"

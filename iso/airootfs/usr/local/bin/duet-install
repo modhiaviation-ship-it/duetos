@@ -1,0 +1,254 @@
+#!/bin/bash
+# duet-install: wipes the internal eMMC and installs DuetOS.
+#
+# Two modes, picked automatically:
+#   offline  run from a DuetOS live USB: copies the live system (no internet needed)
+#   online   run from the OFFICIAL Arch Linux ISO, with this duet3-linux folder copied onto
+#            the stick:  bash /run/archiso/bootmnt/duet3-linux/iso/airootfs/usr/local/bin/duet-install
+#            downloads packages (internet required) and applies the DuetOS files.
+#
+# Layout:  p1  1 GiB  FAT32 ESP, mounted at /boot (systemd-boot, kernel, initramfs)
+#          p2  rest   btrfs, compress=zstd:1, noatime
+#               subvolumes: @ (/), @home, @cache (/var/cache/pacman/pkg), @log (/var/log)
+# Snapper + snap-pac take a snapshot before/after every pacman transaction.
+
+set -euo pipefail
+[ "$(id -u)" -eq 0 ] || exec sudo bash "$0" "$@"
+[ -d /run/archiso ] || { echo "Run this from the DuetOS live USB or the Arch Linux ISO."; exit 1; }
+
+KPARAMS="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0"
+MNT=/mnt/duetos
+# Packages allowed to come from the AUR when they are not in the official repos.
+AUR_ALLOWED=(lisgd wvkbd wlopm nwg-drawer)
+
+say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
+die() { printf '\n\033[1;31m!! %s\033[0m\n' "$*"; exit 1; }
+
+# ---------------------------------------------------------------- mode
+SELF_DIR=$(cd "$(dirname "$(realpath "$0")")" && pwd)
+OVERLAY=$(cd "$SELF_DIR/../../.." 2>/dev/null && pwd || true)   # .../iso/airootfs
+if [ -x /usr/local/bin/duet-power ] && [ "$SELF_DIR" = /usr/local/bin ]; then
+    MODE=offline
+else
+    MODE=online
+    [ -f "$OVERLAY/../packages.duet" ] || die "Can't find packages.duet next to $OVERLAY. Copy the whole duet3-linux folder to the stick."
+    say "Online install: checking the internet connection"
+    if ! ping -c1 -W5 archlinux.org >/dev/null 2>&1; then
+        cat <<'EOF'
+No internet. Connect to Wi-Fi first:
+    iwctl
+    [iwd]# station wlan0 scan
+    [iwd]# station wlan0 get-networks
+    [iwd]# station wlan0 connect "Your Network"
+    [iwd]# exit
+Then run this installer again.
+EOF
+        exit 1
+    fi
+    timedatectl set-ntp true || true
+fi
+say "Install mode: $MODE"
+
+# ---------------------------------------------------------------- find the eMMC
+say "Looking for the internal eMMC"
+EMMC=""
+for b in /sys/block/mmcblk[0-9]; do
+    [ "$(cat "$b/device/type" 2>/dev/null)" = MMC ] && EMMC=/dev/$(basename "$b")
+done
+[ -n "$EMMC" ] || die "No eMMC found. Nothing was changed."
+LIVE_DEV=$(findmnt -no SOURCE /run/archiso/bootmnt 2>/dev/null || true)
+case $LIVE_DEV in "$EMMC"*) die "The live system is running from $EMMC? Refusing.";; esac
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MODEL "$EMMC"
+
+# ---------------------------------------------------------------- questions
+echo
+read -rp "Computer name [duet]: " HOSTNAME_; HOSTNAME_=${HOSTNAME_:-duet}
+while :; do
+    read -rp "Your user name (lowercase, e.g. alex): " USERNAME_
+    [[ $USERNAME_ =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && break
+    echo "Use lowercase letters, digits, - or _."
+done
+echo "Time zone, e.g. Asia/Kolkata, Europe/London, America/New_York"
+while :; do
+    read -rp "Time zone [UTC]: " TZ_; TZ_=${TZ_:-UTC}
+    [ -f "/usr/share/zoneinfo/$TZ_" ] && break
+    echo "Unknown time zone."
+done
+read -rp "Log in automatically at boot (no password at startup, still needed for sudo)? [Y/n]: " AUTOLOGIN
+AUTOLOGIN=${AUTOLOGIN:-y}
+
+echo
+printf '\033[1;31mEVERYTHING on %s (FydeOS and all files) will be erased permanently.\033[0m\n' "$EMMC"
+read -rp "Type ERASE to continue: " c
+[ "$c" = ERASE ] || die "Cancelled. Nothing was changed."
+
+# ---------------------------------------------------------------- partition + format
+say "Partitioning $EMMC"
+umount -R "$MNT" 2>/dev/null || true
+swapoff -a 2>/dev/null || true
+wipefs -af "$EMMC"
+sgdisk --zap-all "$EMMC"
+sgdisk -n1:0:+1G -t1:ef00 -c1:EFI -n2:0:0 -t2:8300 -c2:DuetOS "$EMMC"
+partprobe "$EMMC"; udevadm settle
+ESP=${EMMC}p1; ROOT=${EMMC}p2
+
+say "Formatting"
+mkfs.fat -F32 -n EFI "$ESP"
+mkfs.btrfs -f -L duetos "$ROOT"
+
+OPTS=noatime,compress=zstd:1
+mkdir -p "$MNT"
+mount "$ROOT" "$MNT"
+for sv in @ @home @cache @log; do btrfs subvolume create "$MNT/$sv"; done
+umount "$MNT"
+mount -o "$OPTS,subvol=@" "$ROOT" "$MNT"
+mkdir -p "$MNT"/{boot,home,var/cache/pacman/pkg,var/log}
+mount -o "$OPTS,subvol=@home"  "$ROOT" "$MNT/home"
+mount -o "$OPTS,subvol=@cache" "$ROOT" "$MNT/var/cache/pacman/pkg"
+mount -o "$OPTS,subvol=@log"   "$ROOT" "$MNT/var/log"
+mount "$ESP" "$MNT/boot"
+
+# ---------------------------------------------------------------- copy the system
+AUR_TODO=()
+if [ "$MODE" = offline ]; then
+    say "Copying the system (5-10 minutes)"
+    # Prefer the pristine read-only squashfs (where archiso mounts it); fall back to the running root.
+    SRC=/
+    for d in /run/archiso/sfs/airootfs /run/archiso/airootfs; do
+        [ -d "$d/usr/bin" ] && { SRC=$d/; break; }
+    done
+    rsync -aHAX --info=progress2 \
+        --exclude='/dev/*' --exclude='/proc/*' --exclude='/sys/*' --exclude='/run/*' \
+        --exclude='/tmp/*' --exclude='/mnt/*' --exclude='/boot/*' --exclude='/home/*' \
+        --exclude='/var/log/*' --exclude='/var/cache/pacman/pkg/*' \
+        "$SRC" "$MNT/"
+    # Keep Wi-Fi networks you joined in the live session.
+    cp -a /etc/NetworkManager/system-connections/. "$MNT/etc/NetworkManager/system-connections/" 2>/dev/null || true
+else
+    say "Choosing packages"
+    pacman -Sy --noconfirm archlinux-keyring >/dev/null
+    PKGS=(base linux linux-firmware intel-ucode btrfs-progs dosfstools base-devel git)
+    while read -r p; do
+        if pacman -Si "$p" >/dev/null 2>&1; then PKGS+=("$p")
+        elif [[ " ${AUR_ALLOWED[*]} " == *" $p "* ]]; then AUR_TODO+=("$p")
+        else echo "   skipping $p (not available)"
+        fi
+    done < <(sed 's/#.*//' "$OVERLAY/../packages.duet" | awk 'NF')
+
+    say "Downloading and installing ${#PKGS[@]} packages (10-30 minutes, ~1.5 GB)"
+    pacstrap -K "$MNT" "${PKGS[@]}"
+
+    say "Applying DuetOS files"
+    TMPO=$(mktemp -d)
+    cp -rT "$OVERLAY" "$TMPO"
+    { grep -rIl $'\r' "$TMPO" || true; } | xargs -r sed -i 's/\r$//'   # Windows line endings
+    rm -f "$TMPO/etc/sudoers.d/10-duet-live" "$TMPO/etc/systemd/system/duet-live-setup.service" \
+          "$TMPO/usr/local/bin/duet-live-setup"
+    cp -rT "$TMPO" "$MNT"
+    tr -d '\r' <"$OVERLAY/../../discover.sh" >"$MNT/usr/local/bin/duet-discover" 2>/dev/null || true
+    chmod 755 "$MNT"/usr/local/bin/*
+    chmod 440 "$MNT"/etc/sudoers.d/*
+    find "$TMPO" -type f -printf '%P\n' | while read -r f; do
+        case $f in usr/local/bin/*|etc/sudoers.d/*) ;; *) chmod 644 "$MNT/$f" ;; esac
+    done
+    rm -rf "$TMPO"
+fi
+
+KVER=$(ls "$MNT/usr/lib/modules" | head -1)
+cp "$MNT/usr/lib/modules/$KVER/vmlinuz" "$MNT/boot/vmlinuz-linux"
+
+# ---------------------------------------------------------------- remove live-only bits
+say "Converting live image into an installed system"
+rm -f  "$MNT/etc/sudoers.d/10-duet-live"
+rm -f  "$MNT/etc/mkinitcpio.conf.d/archiso.conf"
+rm -f  "$MNT/etc/systemd/system/multi-user.target.wants/duet-live-setup.service" \
+       "$MNT/etc/systemd/system/duet-live-setup.service" \
+       "$MNT/etc/systemd/system/pacman-init.service" \
+       "$MNT/etc/systemd/system/etc-pacman.d-gnupg.mount" \
+       "$MNT/etc/systemd/system/choose-mirror.service" \
+       "$MNT"/etc/systemd/system/livecd-*.service
+rm -rf "$MNT/etc/systemd/journald.conf.d/volatile-storage.conf" \
+       "$MNT/etc/systemd/system/cloud-init"* \
+       "$MNT/root/.automated_script.sh" "$MNT/root/.zlogin" "$MNT/etc/motd"
+rm -f "$MNT/etc/machine-id"
+
+if [[ $AUTOLOGIN =~ ^[Yy] ]]; then
+    sed -i "s/--autologin duet/--autologin $USERNAME_/" "$MNT/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+else
+    rm -rf "$MNT/etc/systemd/system/getty@tty1.service.d"
+fi
+
+cat >"$MNT/etc/mkinitcpio.conf" <<'EOF'
+# DuetOS: systemd-based initramfs, lz4 for the fastest decompression at boot.
+MODULES=(i915)
+BINARIES=()
+FILES=()
+HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems)
+COMPRESSION="lz4"
+EOF
+cat >"$MNT/etc/mkinitcpio.d/linux.preset" <<'EOF'
+ALL_kver="/boot/vmlinuz-linux"
+PRESETS=('default')
+default_image="/boot/initramfs-linux.img"
+EOF
+echo "KEYMAP=us" >"$MNT/etc/vconsole.conf"
+echo "LANG=C.UTF-8" >"$MNT/etc/locale.conf"
+echo "$HOSTNAME_" >"$MNT/etc/hostname"
+ln -sf "/usr/share/zoneinfo/$TZ_" "$MNT/etc/localtime"
+genfstab -U "$MNT" >"$MNT/etc/fstab"
+
+ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
+
+# ---------------------------------------------------------------- inside the new system
+say "Configuring the new system"
+arch-chroot "$MNT" /bin/bash -e <<EOF
+systemd-machine-id-setup
+find /etc/systemd/system -xtype l -delete   # enable-links to the live-only units removed above
+userdel -r duet 2>/dev/null || true         # live user, if the fallback copy picked it up
+pacman-key --init
+pacman-key --populate archlinux
+useradd -m -G wheel,input,video,audio -s /bin/bash "$USERNAME_"
+echo '%wheel ALL=(ALL:ALL) ALL' >/etc/sudoers.d/00-wheel
+chmod 440 /etc/sudoers.d/00-wheel
+passwd -l root
+mkinitcpio -P
+bootctl install --esp-path=/boot
+cat >/boot/loader/loader.conf <<L
+default duetos.conf
+timeout 1
+editor no
+L
+cat >/boot/loader/entries/duetos.conf <<L
+title   DuetOS
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=UUID=$ROOT_UUID rootflags=subvol=@ rw $KPARAMS
+L
+systemctl enable NetworkManager bluetooth systemd-timesyncd systemd-oomd fstrim.timer \
+                 duet-power-auto.timer systemd-boot-update.service
+systemctl disable systemd-networkd iwd reflector 2>/dev/null || true
+# Snapshots: number-limited, no hourly timeline (saves eMMC writes).
+snapper --no-dbus -c root create-config /
+sed -i -e 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/' -e 's/^NUMBER_LIMIT=.*/NUMBER_LIMIT="10"/' /etc/snapper/configs/root
+EOF
+
+if [ ${#AUR_TODO[@]} -gt 0 ]; then
+    say "Building from the AUR: ${AUR_TODO[*]}"
+    echo "$USERNAME_ ALL=(root) NOPASSWD: /usr/bin/pacman" >"$MNT/etc/sudoers.d/99-duet-aur"
+    chmod 440 "$MNT/etc/sudoers.d/99-duet-aur"
+    for p in "${AUR_TODO[@]}"; do
+        arch-chroot "$MNT" sudo -u "$USERNAME_" bash -c \
+            "cd /tmp && rm -rf $p && git clone --depth 1 https://aur.archlinux.org/$p.git && cd $p && makepkg -si --noconfirm --needed" \
+            || echo "   !! $p failed to build; the desktop has a fallback for it."
+    done
+    rm -f "$MNT/etc/sudoers.d/99-duet-aur"
+fi
+
+say "Set the password for $USERNAME_ (you need it for sudo and installing software)"
+until arch-chroot "$MNT" passwd "$USERNAME_"; do echo "Try again."; done
+
+say "Finishing"
+sync
+umount -R "$MNT"
+echo
+echo "DuetOS is installed. Remove the USB stick and restart:  systemctl reboot"

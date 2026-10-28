@@ -1,0 +1,19 @@
+#!/bin/bash
+# Screen off after 2 min idle; suspend after 15 min idle on battery only.
+# Video playback in Firefox/mpv inhibits idle, so videos never blank.
+# Optional: apps listed one per line in ~/.config/duet/freeze-on-idle are paused (SIGSTOP)
+# while the screen is off and resumed when it comes back.
+FREEZE=$HOME/.config/duet/freeze-on-idle
+OUT=$(cat "$XDG_RUNTIME_DIR/duet-output" 2>/dev/null || echo eDP-1)
+if command -v wlopm >/dev/null; then
+    off="wlopm --off '*'"; on="wlopm --on '*'"
+else
+    off="wlr-randr --output $OUT --off"; on="wlr-randr --output $OUT --on && duet-display"
+fi
+freeze="[ -f $FREEZE ] && duet-power is-battery && while read -r a; do pkill -STOP -x \"\$a\"; done < $FREEZE"
+thaw="[ -f $FREEZE ] && while read -r a; do pkill -CONT -x \"\$a\"; done < $FREEZE"
+exec swayidle -w \
+    timeout 120 "$off; $freeze" resume "$thaw; $on" \
+    timeout 900 "duet-power is-battery && systemctl suspend" \
+    before-sleep "$thaw" \
+    after-resume "$on"
