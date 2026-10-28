@@ -1,0 +1,48 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 44,
+    "spacing": 6,
+    "modules-left": ["custom/apps", "wlr/taskbar"],
+    "modules-center": ["clock"],
+    "modules-right": ["custom/osk", "custom/rotate", "custom/power", "pulseaudio", "backlight", "network", "bluetooth", "battery", "tray", "custom/quick"],
+
+    "custom/apps":   { "format": "▦", "tooltip": false, "on-click": "duet-launcher" },
+    "custom/quick":  { "format": "☰", "tooltip": false, "on-click": "duet-quick" },
+    "custom/osk":    { "format": "⌨", "tooltip": false, "on-click": "duet-osk toggle" },
+    "custom/rotate": {
+        "exec": "duet-rotate --waybar", "return-type": "json", "interval": "once", "signal": 9,
+        "on-click": "duet-rotate --toggle-auto", "on-click-right": "duet-rotate --step"
+    },
+    "custom/power": {
+        "exec": "duet-power waybar", "return-type": "json", "interval": 60, "signal": 8,
+        "on-click": "sudo -n duet-power cycle"
+    },
+
+    "wlr/taskbar": {
+        "format": "{icon}", "icon-size": 30, "tooltip-format": "{title}",
+        "on-click": "activate", "on-click-middle": "close", "on-click-right": "minimize-raise"
+    },
+    "clock": { "format": "{:%H:%M}", "format-alt": "{:%a %d %b  %H:%M}", "tooltip": false },
+    "pulseaudio": {
+        "format": "{icon} {volume}%", "format-muted": "🔇",
+        "format-icons": { "default": ["🔈", "🔉", "🔊"] },
+        "on-click": "pavucontrol", "scroll-step": 5
+    },
+    "backlight": { "format": "🔆 {percent}%", "on-scroll-up": "brightnessctl -q set +5%", "on-scroll-down": "brightnessctl -q -n 1 set 5%-", "on-click": "duet-quick" },
+    "network": {
+        "format-wifi": "📶", "format-disconnected": "⚠", "format-ethernet": "🖧",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)", "on-click": "nm-connection-editor"
+    },
+    "bluetooth": {
+        "format": "ᛒ", "format-off": "", "format-disabled": "", "format-connected": "ᛒ {num_connections}",
+        "on-click": "blueman-manager"
+    },
+    "battery": {
+        "states": { "warning": 25, "critical": 12 },
+        "format": "{icon} {capacity}%", "format-charging": "🔌 {capacity}%",
+        "format-icons": ["🪫", "🔋", "🔋", "🔋"],
+        "tooltip-format": "{timeTo}, {power:.1f} W"
+    },
+    "tray": { "icon-size": 24, "spacing": 10 }
+}

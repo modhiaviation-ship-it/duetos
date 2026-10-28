@@ -1,0 +1,22 @@
+* {
+    font-family: sans-serif, "Noto Color Emoji";
+    font-size: 17px;
+    min-height: 0;
+}
+window#waybar {
+    background: #15171c;
+    color: #e6e6e6;
+}
+#custom-apps, #custom-quick, #custom-osk, #custom-rotate, #custom-power,
+#pulseaudio, #backlight, #network, #bluetooth, #battery, #clock, #tray {
+    padding: 0 12px;        /* wide touch targets */
+    margin: 4px 0;
+    border-radius: 8px;
+}
+#custom-apps, #custom-quick { font-size: 22px; padding: 0 16px; }
+#taskbar button { padding: 0 8px; border-radius: 8px; }
+#taskbar button.active { background: #3d5a80; }
+#custom-power.performance { color: #f5c26b; }
+#custom-power.powersave { color: #8fd18f; }
+#battery.warning:not(.charging) { color: #f5c26b; }
+#battery.critical:not(.charging) { color: #ff6b6b; }

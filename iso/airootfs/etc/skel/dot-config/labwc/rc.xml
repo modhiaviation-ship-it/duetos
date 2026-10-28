@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<labwc_config>
+
+  <core>
+    <gap>0</gap>
+    <adaptiveSync>no</adaptiveSync>
+  </core>
+
+  <theme>
+    <name></name>
+    <cornerRadius>8</cornerRadius>
+    <font place="ActiveWindow"><name>sans</name><size>13</size><weight>bold</weight></font>
+    <font place="InactiveWindow"><name>sans</name><size>13</size></font>
+    <font place="MenuItem"><name>sans</name><size>14</size></font>
+    <font place="OnScreenDisplay"><name>sans</name><size>14</size></font>
+  </theme>
+
+  <placement><policy>center</policy></placement>
+
+  <!-- Big titlebar buttons for fingers: maximize + close only. -->
+  <titlebar>
+    <layout>icon:iconify,max,close</layout>
+  </titlebar>
+
+  <keyboard>
+    <default />
+    <keybind key="W-Return"><action name="Execute" command="foot" /></keybind>
+    <keybind key="W-d"><action name="Execute" command="duet-launcher" /></keybind>
+    <keybind key="W-space"><action name="Execute" command="duet-launcher" /></keybind>
+    <keybind key="W-q"><action name="Close" /></keybind>
+    <keybind key="W-Up"><action name="ToggleMaximize" /></keybind>
+    <keybind key="W-k"><action name="Execute" command="duet-osk toggle" /></keybind>
+    <keybind key="W-p"><action name="Execute" command="sudo -n duet-power cycle" /></keybind>
+    <keybind key="XF86MonBrightnessUp"><action name="Execute" command="brightnessctl -q set +5%" /></keybind>
+    <keybind key="XF86MonBrightnessDown"><action name="Execute" command="brightnessctl -q -n 1 set 5%-" /></keybind>
+    <keybind key="XF86AudioRaiseVolume"><action name="Execute" command="wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+" /></keybind>
+    <keybind key="XF86AudioLowerVolume"><action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" /></keybind>
+    <keybind key="XF86AudioMute"><action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" /></keybind>
+    <keybind key="XF86RotateWindows"><action name="Execute" command="duet-rotate --step" /></keybind>
+  </keyboard>
+
+  <!-- Touch goes to the internal panel; the matrix is rewritten by duet-rotate. -->
+  <touch mapToOutput="eDP-1" mouseEmulation="no" />
+
+  <libinput>
+    <device category="default">
+      <naturalScroll>no</naturalScroll>
+    </device>
+    <device category="touchpad">
+      <tap>yes</tap>
+      <tapButtonMap>lrm</tapButtonMap>
+      <naturalScroll>yes</naturalScroll>
+      <!-- Buttonless pad: one-finger click = left, two-finger click = right. -->
+      <clickMethod>clickfinger</clickMethod>
+      <disableWhileTyping>yes</disableWhileTyping>
+      <scrollMethod>twofinger</scrollMethod>
+    </device>
+    <device category="touch">
+      <calibrationMatrix>1 0 0 0 1 0</calibrationMatrix>
+    </device>
+  </libinput>
+
+  <!-- Open normal app windows maximized: tablet-style. -->
+  <windowRules>
+    <windowRule identifier="*" type="normal">
+      <action name="Maximize" />
+    </windowRule>
+  </windowRules>
+
+</labwc_config>

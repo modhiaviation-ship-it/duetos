@@ -33,6 +33,10 @@ cp -r /usr/share/archiso/configs/releng "$PROFILE"
 
 echo "==> Overlaying DuetOS airootfs"
 cp -rT "$HERE/airootfs" "$PROFILE/airootfs"
+# Dotfiles are stored as dot-NAME (GitHub's web upload skips names starting with '.').
+find "$PROFILE/airootfs" -depth -name 'dot-*' | while read -r p; do
+    mv "$p" "$(dirname "$p")/.${p##*/dot-}"
+done
 # Files edited on Windows may carry CRLF line endings; strip them from text files.
 { grep -rIl $'\r' "$PROFILE/airootfs" || true; } | xargs -r sed -i 's/\r$//'
 # Normalise permissions (files copied from /mnt/c come in as 0777).

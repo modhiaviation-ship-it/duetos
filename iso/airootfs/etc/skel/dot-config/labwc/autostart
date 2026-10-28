@@ -1,0 +1,14 @@
+# DuetOS session autostart (labwc runs this with sh)
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP GTK_THEME >/dev/null 2>&1
+duet-display
+swaybg -c '#15171c' >/dev/null 2>&1 &
+waybar >/dev/null 2>&1 &
+mako >/dev/null 2>&1 &
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 >/dev/null 2>&1 &
+nm-applet --indicator >/dev/null 2>&1 &
+wvkbd-mobintl --hidden -L 300 -H 340 >/dev/null 2>&1 &
+duet-tabletmode >/dev/null 2>&1 &
+duet-rotate >/dev/null 2>&1 &
+duet-gestures >/dev/null 2>&1 &
+duet-idle >/dev/null 2>&1 &
+[ -d /run/archiso ] && notify-send -t 15000 "Welcome to DuetOS (live)" "Swipe down from the top for quick settings → Install DuetOS. Nothing is saved in the live session." &

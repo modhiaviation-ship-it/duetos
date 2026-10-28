@@ -141,6 +141,10 @@ else
     say "Applying DuetOS files"
     TMPO=$(mktemp -d)
     cp -rT "$OVERLAY" "$TMPO"
+    # Dotfiles are stored as dot-NAME (GitHub's web upload skips names starting with '.').
+    find "$TMPO" -depth -name 'dot-*' | while read -r p; do
+        mv "$p" "$(dirname "$p")/.${p##*/dot-}"
+    done
     { grep -rIl $'\r' "$TMPO" || true; } | xargs -r sed -i 's/\r$//'   # Windows line endings
     rm -f "$TMPO/etc/sudoers.d/10-duet-live" "$TMPO/etc/systemd/system/duet-live-setup.service" \
           "$TMPO/usr/local/bin/duet-live-setup"

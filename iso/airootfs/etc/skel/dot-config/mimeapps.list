@@ -1,0 +1,16 @@
+[Default Applications]
+application/pdf=firefox.desktop
+text/html=firefox.desktop
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+image/png=imv.desktop
+image/jpeg=imv.desktop
+image/webp=imv.desktop
+image/gif=imv.desktop
+video/mp4=mpv.desktop
+video/webm=mpv.desktop
+video/x-matroska=mpv.desktop
+audio/mpeg=mpv.desktop
+audio/flac=mpv.desktop
+text/plain=org.xfce.mousepad.desktop
+inode/directory=pcmanfm.desktop

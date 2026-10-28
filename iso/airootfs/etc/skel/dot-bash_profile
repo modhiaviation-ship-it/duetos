@@ -1,0 +1,5 @@
+[[ -f ~/.bashrc ]] && . ~/.bashrc
+# Start the desktop automatically on the first console.
+if [ -z "$WAYLAND_DISPLAY" ] && [ "$(tty)" = /dev/tty1 ]; then
+    exec /usr/local/bin/duet-session
+fi
