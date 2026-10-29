@@ -20,9 +20,13 @@ pref("apz.allow_zooming", true);
 pref("general.smoothScroll.msdPhysics.enabled", true);
 pref("widget.gtk.overlay-scrollbars.enabled", true);
 
-// Dark theme for UI and websites that support it.
-pref("layout.css.prefers-color-scheme.content-override", 0);
-pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
+// Windows-like: light theme following the system, tabs in the titlebar with
+// minimize/maximize/close on the right, no UI animations.
+pref("layout.css.prefers-color-scheme.content-override", 2);
+pref("extensions.activeThemeID", "default-theme@mozilla.org");
+pref("browser.tabs.inTitlebar", 1);
+pref("ui.prefersReducedMotion", 1);
+pref("toolkit.cosmeticAnimations.enabled", false);
 
 // Background work and telemetry off.
 pref("datareporting.healthreport.uploadEnabled", false);

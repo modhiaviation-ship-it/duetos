@@ -1,0 +1,7 @@
+#!/bin/bash
+# Task Manager (Ctrl+Shift+Esc): lxtask if installed, otherwise top in a terminal.
+if command -v lxtask >/dev/null; then
+    pkill -x lxtask || exec lxtask
+else
+    exec foot -T "Task Manager" top
+fi

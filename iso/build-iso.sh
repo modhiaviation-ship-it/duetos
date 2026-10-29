@@ -24,7 +24,7 @@ KPARAMS="quiet loglevel=3 rd.udev.log_level=3 nowatchdog zswap.enabled=0 copytor
 [ "$(id -u)" -eq 0 ] || { echo "Run as root." >&2; exit 1; }
 
 echo "==> Installing build tools"
-pacman -Syu --needed --noconfirm archiso git base-devel sudo
+pacman -Syu --needed --noconfirm archiso git base-devel sudo sassc
 
 echo "==> Fresh work tree in $BUILD"
 rm -rf "$BUILD"
@@ -48,6 +48,28 @@ install -m 755 "$HERE/../discover.sh" "$PROFILE/airootfs/usr/local/bin/duet-disc
 # A plain Arch pacman.conf for the image: releng's, copied before we add our temporary
 # local repo. (The build host's own may be a Docker one that strips docs and locales.)
 install -m 644 "$PROFILE/pacman.conf" "$PROFILE/airootfs/etc/pacman.conf"
+
+echo "==> Windows 11-style themes (open source, GPL-3): Fluent GTK + Fluent icons"
+# Microsoft's own icons and fonts can't be redistributed; Fluent is a faithful open-source
+# Windows 11 look. Failures here only cost the look, never the build.
+THEMES="$BUILD/themes"
+mkdir -p "$THEMES" "$PROFILE/airootfs/usr/share/themes" "$PROFILE/airootfs/usr/share/icons"
+if git clone --depth 1 https://github.com/vinceliuice/Fluent-gtk-theme.git "$THEMES/gtk" &&
+   (cd "$THEMES/gtk" && ./install.sh -d "$PROFILE/airootfs/usr/share/themes" -c light); then
+    echo "Fluent GTK theme installed: $(ls "$PROFILE/airootfs/usr/share/themes" | tr '\n' ' ')"
+else
+    echo "!! Fluent GTK theme failed; apps will use Adwaita (light)."
+fi
+if git clone --depth 1 https://github.com/vinceliuice/Fluent-icon-theme.git "$THEMES/icons" &&
+   (cd "$THEMES/icons" && ./install.sh -d "$PROFILE/airootfs/usr/share/icons"); then
+    echo "Fluent icons installed: $(ls "$PROFILE/airootfs/usr/share/icons" | tr '\n' ' ')"
+    # Windows-like cursors from the same project, if present.
+    if [ -d "$THEMES/icons/cursors/dist" ]; then
+        cp -r "$THEMES/icons/cursors/dist" "$PROFILE/airootfs/usr/share/icons/Fluent-cursors"
+    fi
+else
+    echo "!! Fluent icons failed; apps will use Adwaita icons."
+fi
 
 echo "==> Removing releng pieces we replace"
 # Releng blocks suspend in the live system; we want to test suspend.

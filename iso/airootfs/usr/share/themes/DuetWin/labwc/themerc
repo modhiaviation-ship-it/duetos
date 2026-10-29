@@ -1,0 +1,44 @@
+# DuetWin: Windows 11-style light theme for labwc.
+# Colours follow Windows 11's default light scheme (accent #0067C0).
+# Button images (*.svg) live next to this file.
+
+border.width: 1
+window.titlebar.padding.height: 6
+window.titlebar.padding.width: 0
+window.button.width: 46
+window.button.spacing: 0
+window.label.text.justify: left
+
+window.active.border.color: #c8c8c8
+window.inactive.border.color: #dcdcdc
+window.active.title.bg.color: #f3f3f3
+window.inactive.title.bg.color: #fafafa
+window.active.label.text.color: #1b1b1b
+window.inactive.label.text.color: #8a8a8a
+window.active.button.unpressed.image.color: #1b1b1b
+window.inactive.button.unpressed.image.color: #8a8a8a
+
+# Soft Windows-like shadow around windows.
+window.active.shadow.size: 14
+window.inactive.shadow.size: 8
+window.active.shadow.color: #00000033
+window.inactive.shadow.color: #0000001f
+
+# Right-click menus (Windows 11 context menu look).
+menu.border.width: 1
+menu.border.color: #e0e0e0
+menu.items.bg.color: #f9f9f9
+menu.items.text.color: #1b1b1b
+menu.items.active.bg.color: #e8e8e8
+menu.items.active.text.color: #1b1b1b
+menu.items.padding.x: 14
+menu.items.padding.y: 8
+menu.separator.color: #e0e0e0
+menu.separator.padding.height: 4
+
+# Alt+Tab switcher.
+osd.bg.color: #f3f3f3
+osd.border.color: #c8c8c8
+osd.border.width: 1
+osd.label.text.color: #1b1b1b
+osd.window-switcher.item.active.border.color: #0067c0

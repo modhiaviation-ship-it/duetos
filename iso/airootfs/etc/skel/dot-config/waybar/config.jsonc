@@ -1,48 +1,52 @@
+// Windows 11-style taskbar: bottom, Start + search + apps centred,
+// tray / quick settings (Wi-Fi, volume, battery) / clock on the right.
+// Icons are Font Awesome glyphs (monochrome, like Windows' tray icons).
 {
     "layer": "top",
-    "position": "top",
-    "height": 44,
-    "spacing": 6,
-    "modules-left": ["custom/apps", "wlr/taskbar"],
-    "modules-center": ["clock"],
-    "modules-right": ["custom/osk", "custom/rotate", "custom/power", "pulseaudio", "backlight", "network", "bluetooth", "battery", "tray", "custom/quick"],
+    "position": "bottom",
+    "height": 48,
+    "spacing": 0,
+    "modules-left": [],
+    "modules-center": ["custom/start", "custom/search", "wlr/taskbar"],
+    "modules-right": ["tray", "custom/osk", "group/quick", "clock"],
 
-    "custom/apps":   { "format": "▦", "tooltip": false, "on-click": "duet-launcher" },
-    "custom/quick":  { "format": "☰", "tooltip": false, "on-click": "duet-quick" },
-    "custom/osk":    { "format": "⌨", "tooltip": false, "on-click": "duet-osk toggle" },
-    "custom/rotate": {
-        "exec": "duet-rotate --waybar", "return-type": "json", "interval": "once", "signal": 9,
-        "on-click": "duet-rotate --toggle-auto", "on-click-right": "duet-rotate --step"
-    },
-    "custom/power": {
-        "exec": "duet-power waybar", "return-type": "json", "interval": 60, "signal": 8,
-        "on-click": "sudo -n duet-power cycle"
-    },
+    "custom/start":  { "format": "", "tooltip-format": "Start", "on-click": "duet-launcher" },
+    "custom/search": { "format": "", "tooltip-format": "Search", "on-click": "duet-launcher" },
+    "custom/osk":    { "format": "", "tooltip-format": "Touch keyboard", "on-click": "duet-osk toggle" },
 
     "wlr/taskbar": {
-        "format": "{icon}", "icon-size": 30, "tooltip-format": "{title}",
+        "format": "{icon}", "icon-size": 26, "tooltip-format": "{title}",
         "on-click": "activate", "on-click-middle": "close", "on-click-right": "minimize-raise"
     },
-    "clock": { "format": "{:%H:%M}", "format-alt": "{:%a %d %b  %H:%M}", "tooltip": false },
-    "pulseaudio": {
-        "format": "{icon} {volume}%", "format-muted": "🔇",
-        "format-icons": { "default": ["🔈", "🔉", "🔊"] },
-        "on-click": "pavucontrol", "scroll-step": 5
+
+    "group/quick": {
+        "orientation": "horizontal",
+        "modules": ["network", "pulseaudio", "battery"]
     },
-    "backlight": { "format": "🔆 {percent}%", "on-scroll-up": "brightnessctl -q set +5%", "on-scroll-down": "brightnessctl -q -n 1 set 5%-", "on-click": "duet-quick" },
     "network": {
-        "format-wifi": "📶", "format-disconnected": "⚠", "format-ethernet": "🖧",
-        "tooltip-format-wifi": "{essid} ({signalStrength}%)", "on-click": "nm-connection-editor"
+        "format-wifi": "", "format-ethernet": "", "format-disconnected": "",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)", "tooltip-format-disconnected": "Not connected",
+        "on-click": "duet-quick"
     },
-    "bluetooth": {
-        "format": "ᛒ", "format-off": "", "format-disabled": "", "format-connected": "ᛒ {num_connections}",
-        "on-click": "blueman-manager"
+    "pulseaudio": {
+        "format": "{icon}", "format-muted": "",
+        "format-icons": { "default": ["", "", ""] },
+        "tooltip-format": "Volume {volume}%",
+        "on-click": "duet-quick", "on-scroll-up": "wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+        "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
     },
     "battery": {
         "states": { "warning": 25, "critical": 12 },
-        "format": "{icon} {capacity}%", "format-charging": "🔌 {capacity}%",
-        "format-icons": ["🪫", "🔋", "🔋", "🔋"],
-        "tooltip-format": "{timeTo}, {power:.1f} W"
+        "format": "{icon}", "format-charging": " {icon}", "format-plugged": "",
+        "format-icons": ["", "", "", "", ""],
+        "tooltip-format": "{capacity}% · {timeTo}",
+        "on-click": "duet-quick"
     },
-    "tray": { "icon-size": 24, "spacing": 10 }
+
+    "clock": {
+        "format": "{:%I:%M %p\n%d-%m-%Y}",
+        "tooltip-format": "{:%A, %d %B %Y}",
+        "justify": "right"
+    },
+    "tray": { "icon-size": 18, "spacing": 8 }
 }

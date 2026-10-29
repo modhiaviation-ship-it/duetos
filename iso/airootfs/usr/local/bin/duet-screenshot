@@ -1,0 +1,12 @@
+#!/bin/bash
+# duet-screenshot full|region: like Print Screen / Win+Shift+S.
+# Saves to ~/Pictures/Screenshots and copies the image to the clipboard.
+dir=$HOME/Pictures/Screenshots
+mkdir -p "$dir"
+f=$dir/Screenshot_$(date +%Y-%m-%d_%H-%M-%S).png
+case ${1:-full} in
+    region) geo=$(slurp) || exit 0; grim -g "$geo" "$f" ;;
+    *)      grim "$f" ;;
+esac
+wl-copy <"$f"
+notify-send -i "$f" -t 3000 "Screenshot saved" "Copied to clipboard · Pictures/Screenshots"

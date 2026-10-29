@@ -1,7 +1,22 @@
 #!/bin/bash
-# App drawer: touch-friendly grid (nwg-drawer) if installed, fuzzel otherwise. Tapping again closes it.
+# Start menu: Windows 11-style app grid with search and power buttons (nwg-drawer),
+# fuzzel if nwg-drawer isn't installed. Pressing Start again closes it.
+pkill -x nwg-drawer && exit 0
+pkill -x fuzzel && exit 0
+
+# Run a launcher; succeed unless it failed within 2 s (i.e. rejected an option).
+try() {
+    local t0=$SECONDS
+    "$@" && return 0
+    [ $((SECONDS - t0)) -ge 2 ]
+}
+
 if command -v nwg-drawer >/dev/null; then
-    pkill -x nwg-drawer || exec nwg-drawer -is 80 -c 5 -spacing 24 -nofs -ovl
-else
-    pkill -x fuzzel || exec fuzzel
+    try nwg-drawer -s drawer.css -is 56 -c 6 -spacing 12 -nofs -nocats -ovl \
+        -mt 60 -mb 70 -ml 160 -mr 160 -term foot -wm labwc \
+        -pbsleep "systemctl suspend" -pbreboot "systemctl reboot" \
+        -pbpoweroff "systemctl poweroff" -pbexit "labwc --exit" && exit 0
+    # Older nwg-drawer without some of these options: plain grid.
+    try nwg-drawer -s drawer.css -is 56 -c 6 -nofs -ovl && exit 0
 fi
+exec fuzzel --anchor bottom --y-margin 60

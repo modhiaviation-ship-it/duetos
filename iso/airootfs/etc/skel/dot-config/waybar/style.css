@@ -1,22 +1,56 @@
+/* Windows 11 light taskbar. Accent #0067C0, text #1B1B1B. No transitions. */
 * {
-    font-family: sans-serif, "Noto Color Emoji";
-    font-size: 17px;
+    font-family: "Noto Sans", sans-serif;
+    font-size: 12px;
     min-height: 0;
+    border: none;
+    border-radius: 0;
+    transition: none;
 }
 window#waybar {
-    background: #15171c;
-    color: #e6e6e6;
+    background: rgba(238, 238, 238, 0.97);
+    color: #1b1b1b;
+    border-top: 1px solid #dcdcdc;
 }
-#custom-apps, #custom-quick, #custom-osk, #custom-rotate, #custom-power,
-#pulseaudio, #backlight, #network, #bluetooth, #battery, #clock, #tray {
-    padding: 0 12px;        /* wide touch targets */
-    margin: 4px 0;
-    border-radius: 8px;
+tooltip { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; }
+tooltip label { color: #1b1b1b; }
+
+/* Icon buttons */
+#custom-start, #custom-search, #custom-osk, #network, #pulseaudio, #battery {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
 }
-#custom-apps, #custom-quick { font-size: 22px; padding: 0 16px; }
-#taskbar button { padding: 0 8px; border-radius: 8px; }
-#taskbar button.active { background: #3d5a80; }
-#custom-power.performance { color: #f5c26b; }
-#custom-power.powersave { color: #8fd18f; }
-#battery.warning:not(.charging) { color: #f5c26b; }
-#battery.critical:not(.charging) { color: #ff6b6b; }
+#custom-start, #custom-search {
+    font-size: 19px;
+    padding: 0 13px;
+    margin: 5px 2px;
+    border-radius: 6px;
+}
+#custom-start { color: #0067c0; }
+#custom-osk { font-size: 15px; padding: 0 10px; margin: 6px 2px; border-radius: 6px; }
+
+/* Running apps: grey pill under each, blue pill under the active one (Windows 11). */
+#taskbar button {
+    padding: 0 9px;
+    margin: 5px 2px;
+    border-radius: 6px;
+    border-bottom: 3px solid transparent;
+}
+#taskbar button.active {
+    background: rgba(255, 255, 255, 0.85);
+    border-bottom: 3px solid #0067c0;
+}
+
+/* Wi-Fi / volume / battery behave as one button that opens quick settings. */
+#quick { margin: 6px 2px; padding: 0 6px; border-radius: 6px; }
+#network, #pulseaudio, #battery { font-size: 14px; padding: 0 6px; }
+#battery.warning:not(.charging) { color: #9d5d00; }
+#battery.critical:not(.charging) { color: #c42b1c; }
+
+#clock { padding: 0 12px; margin: 5px 4px 5px 2px; border-radius: 6px; font-size: 11.5px; }
+#tray { padding: 0 6px; }
+
+#custom-start:hover, #custom-search:hover, #custom-osk:hover, #taskbar button:hover,
+#quick:hover, #clock:hover {
+    background: rgba(255, 255, 255, 0.7);
+}

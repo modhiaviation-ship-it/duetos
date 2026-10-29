@@ -4,7 +4,10 @@ export XDG_CURRENT_DESKTOP=labwc:wlroots
 export XDG_SESSION_TYPE=wayland
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM="wayland;xcb"
-export GTK_THEME=Adwaita:dark
-export XCURSOR_SIZE=32
+# Qt apps follow the GTK (Fluent) theme.
+export QT_QPA_PLATFORMTHEME=gtk3
+# Windows-style cursor (Fluent) if installed, otherwise the default.
+[ -d /usr/share/icons/Fluent-cursors ] && export XCURSOR_THEME=Fluent-cursors
+export XCURSOR_SIZE=24
 export _JAVA_AWT_WM_NONREPARENTING=1
 exec labwc >"${XDG_RUNTIME_DIR:-/tmp}/labwc.log" 2>&1

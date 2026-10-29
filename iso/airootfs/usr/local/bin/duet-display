@@ -12,7 +12,9 @@ if [ ! -f "$CONF" ]; then
     # Native mode = "current" mode line, e.g. "1200x1920 px, 60.000000 Hz (preferred, current)".
     mode=$(wlr-randr --output "$OUT" | awk '/current/ {print $1; exit}')
     w=${mode%x*}; h=${mode#*x}
-    base=0; [ "${w:-1}" -lt "${h:-0}" ] && base=90
+    # On the Duet 3 the panel is mounted upside down relative to the usual default,
+    # so landscape-with-keyboard is 180° from what a generic tablet would use.
+    base=180; [ "${w:-1}" -lt "${h:-0}" ] && base=270
     cat >"$CONF" <<EOF
 # DuetOS rotation settings
 AUTO=1          # 1 = rotate with the accelerometer in tablet mode

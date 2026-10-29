@@ -1,0 +1,30 @@
+/* Windows 11-style Start menu (light). */
+* { transition: none; }
+window {
+    background-color: rgba(243, 243, 243, 0.98);
+    color: #1b1b1b;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+}
+#searchbox {
+    background: #ffffff;
+    color: #1b1b1b;
+    border: 1px solid #d0d0d0;
+    border-bottom: 2px solid #0067c0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 18px 60px 8px 60px;
+}
+button, #app-box button {
+    background: none;
+    color: #1b1b1b;
+    border: none;
+    border-radius: 6px;
+    box-shadow: none;
+    padding: 8px;
+}
+button:hover, button:focus { background: rgba(0, 0, 0, 0.05); }
+button:active { background: rgba(0, 0, 0, 0.09); }
+#power-bar button { padding: 10px; }
+#power-bar button:hover { background: rgba(0, 0, 0, 0.06); }
+label { color: #1b1b1b; font-family: "Noto Sans"; font-size: 11px; }

@@ -1,36 +1,43 @@
 #!/bin/bash
-# Quick settings menu (top-edge swipe or panel). Big rows for fingers.
+# Quick settings (Wi-Fi/volume/battery click, Win+A, or top-edge swipe).
+# Opens bottom-right above the taskbar like Windows 11's quick settings.
 pkill -x fuzzel && exit 0
-items="⚡  Power profile: $(duet-power status | sed 's/ ac=.*//')
-⌨  On-screen keyboard
-🔄  Auto-rotate on/off
-↻  Rotate 90°
-📶  Wi-Fi settings
-ᛒ  Bluetooth
-🔊  Sound
-🔆  Brightness 30%
-🔆  Brightness 60%
-🔆  Brightness 100%
-⏾  Suspend
-⏻  Power off
-↺  Restart"
-[ -d /run/archiso ] && items="$items
-💾  Install DuetOS to this tablet"
+pct() { brightnessctl -m 2>/dev/null | cut -d, -f4; }
+items="Wi-Fi and network
+Bluetooth
+Sound
+Brightness: $(pct)  →  30%
+Brightness  →  60%
+Brightness  →  100%
+Power mode: $(duet-power status | sed -e 's/^profile=//' -e 's/ ac=.*//' -e 's/ mode=/ (/' -e 's/$/)/')
+Touch keyboard
+Rotation lock on/off
+Rotate screen 90°
+Screenshot
+Task Manager
+Sleep
+Restart
+Shut down"
+[ -d /run/archiso ] && items="Install DuetOS to this tablet
+$items"
 
-choice=$(echo "$items" | fuzzel --dmenu --lines 14 --width 40 --font "sans:size=15" --prompt "Quick > ") || exit 0
+choice=$(echo "$items" | fuzzel --dmenu --lines 16 --width 30 --anchor bottom-right \
+    --x-margin 8 --y-margin 8 --prompt "Quick settings  ") || exit 0
 case $choice in
-    *"Power profile"*)   sudo -n duet-power cycle; notify-send -t 1500 "$(duet-power status)" ;;
-    *"keyboard"*)        duet-osk toggle ;;
-    *"Auto-rotate"*)     duet-rotate --toggle-auto ;;
-    *"Rotate 90"*)       duet-rotate --step ;;
-    *"Wi-Fi"*)           nm-connection-editor & ;;
-    *"Bluetooth"*)       rfkill unblock bluetooth; bluetoothctl power on >/dev/null; blueman-manager & ;;
-    *"Sound"*)           pavucontrol & ;;
-    *"30%"*)             brightnessctl -q set 30% ;;
-    *"60%"*)             brightnessctl -q set 60% ;;
-    *"100%"*)            brightnessctl -q set 100% ;;
-    *"Suspend"*)         systemctl suspend ;;
-    *"Power off"*)       systemctl poweroff ;;
-    *"Restart"*)         systemctl reboot ;;
-    *"Install"*)         foot -T "Install DuetOS" sudo duet-install & ;;
+    "Wi-Fi"*)            nm-connection-editor & ;;
+    "Bluetooth"*)        rfkill unblock bluetooth; bluetoothctl power on >/dev/null; blueman-manager & ;;
+    "Sound"*)            pavucontrol & ;;
+    *"30%")              brightnessctl -q set 30% ;;
+    *"60%")              brightnessctl -q set 60% ;;
+    *"100%")             brightnessctl -q set 100% ;;
+    "Power mode"*)       sudo -n duet-power cycle; notify-send -t 2000 "Power mode" "$(duet-power status)" ;;
+    "Touch keyboard"*)   duet-osk toggle ;;
+    "Rotation lock"*)    duet-rotate --toggle-auto ;;
+    "Rotate screen"*)    duet-rotate --step ;;
+    "Screenshot"*)       sleep 0.3; duet-screenshot full ;;
+    "Task Manager"*)     duet-taskmgr & ;;
+    "Sleep"*)            systemctl suspend ;;
+    "Restart"*)          systemctl reboot ;;
+    "Shut down"*)        systemctl poweroff ;;
+    "Install DuetOS"*)   foot -T "Install DuetOS" sudo duet-install & ;;
 esac

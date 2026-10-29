@@ -52,6 +52,11 @@ gnome-themes-extra
 noto-fonts
 noto-fonts-emoji
 ttf-dejavu
+ttf-font-awesome
+grim
+slurp
+wl-clipboard
+lxtask
 
 # --- Apps ---
 firefox

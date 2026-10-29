@@ -6,29 +6,47 @@
     <adaptiveSync>no</adaptiveSync>
   </core>
 
+  <!-- Windows 11 look: DuetWin theme (/usr/share/themes/DuetWin), no animations. -->
   <theme>
-    <name></name>
+    <name>DuetWin</name>
     <cornerRadius>8</cornerRadius>
-    <font place="ActiveWindow"><name>sans</name><size>13</size><weight>bold</weight></font>
-    <font place="InactiveWindow"><name>sans</name><size>13</size></font>
-    <font place="MenuItem"><name>sans</name><size>14</size></font>
-    <font place="OnScreenDisplay"><name>sans</name><size>14</size></font>
+    <dropShadows>yes</dropShadows>
+    <font place="ActiveWindow"><name>Noto Sans</name><size>10</size></font>
+    <font place="InactiveWindow"><name>Noto Sans</name><size>10</size></font>
+    <font place="MenuItem"><name>Noto Sans</name><size>10</size></font>
+    <font place="OnScreenDisplay"><name>Noto Sans</name><size>10</size></font>
   </theme>
 
   <placement><policy>center</policy></placement>
 
-  <!-- Big titlebar buttons for fingers: maximize + close only. -->
+  <!-- Windows layout: app icon + title on the left; minimize, maximize, close on the right. -->
   <titlebar>
     <layout>icon:iconify,max,close</layout>
   </titlebar>
 
+  <!-- Alt+Tab shows app icons and titles, like Windows. -->
+  <windowSwitcher show="yes" preview="yes" outlines="yes" />
+
   <keyboard>
     <default />
+    <!-- Windows key alone opens Start. -->
+    <keybind key="Super_L" onRelease="yes"><action name="Execute" command="duet-launcher" /></keybind>
+    <keybind key="W-s"><action name="Execute" command="duet-launcher" /></keybind>
+    <keybind key="W-e"><action name="Execute" command="pcmanfm" /></keybind>
+    <keybind key="W-d"><action name="ToggleShowDesktop" /></keybind>
+    <keybind key="W-a"><action name="Execute" command="duet-quick" /></keybind>
+    <keybind key="W-i"><action name="Execute" command="duet-quick" /></keybind>
+    <keybind key="W-r"><action name="Execute" command="fuzzel" /></keybind>
+    <keybind key="W-Left"><action name="SnapToEdge" direction="left" /></keybind>
+    <keybind key="W-Right"><action name="SnapToEdge" direction="right" /></keybind>
+    <keybind key="W-Up"><action name="Maximize" /></keybind>
+    <keybind key="W-Down"><action name="UnMaximize" /></keybind>
+    <keybind key="A-F4"><action name="Close" /></keybind>
+    <keybind key="C-S-Escape"><action name="Execute" command="duet-taskmgr" /></keybind>
+    <keybind key="W-S-s"><action name="Execute" command="duet-screenshot region" /></keybind>
+    <keybind key="Print"><action name="Execute" command="duet-screenshot full" /></keybind>
+    <keybind key="C-A-t"><action name="Execute" command="foot" /></keybind>
     <keybind key="W-Return"><action name="Execute" command="foot" /></keybind>
-    <keybind key="W-d"><action name="Execute" command="duet-launcher" /></keybind>
-    <keybind key="W-space"><action name="Execute" command="duet-launcher" /></keybind>
-    <keybind key="W-q"><action name="Close" /></keybind>
-    <keybind key="W-Up"><action name="ToggleMaximize" /></keybind>
     <keybind key="W-k"><action name="Execute" command="duet-osk toggle" /></keybind>
     <keybind key="W-p"><action name="Execute" command="sudo -n duet-power cycle" /></keybind>
     <keybind key="XF86MonBrightnessUp"><action name="Execute" command="brightnessctl -q set +5%" /></keybind>
@@ -49,6 +67,7 @@
     <device category="touchpad">
       <tap>yes</tap>
       <tapButtonMap>lrm</tapButtonMap>
+      <!-- Windows-style scrolling direction (content follows fingers). -->
       <naturalScroll>yes</naturalScroll>
       <!-- Buttonless pad: one-finger click = left, two-finger click = right. -->
       <clickMethod>clickfinger</clickMethod>
