@@ -119,6 +119,7 @@ if [ ${#missing[@]} -gt 0 ]; then
             fi
         else
             echo "!! $p not found anywhere; dropping it."
+            echo "::warning::Package '$p' was not found and is missing from the ISO"
             sed -i "/^$p\$/d" "$BUILD/wanted.txt"
         fi
     done

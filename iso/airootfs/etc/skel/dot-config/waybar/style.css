@@ -17,7 +17,7 @@ tooltip label { color: #1b1b1b; }
 
 /* Icon buttons */
 #custom-start, #custom-search, #custom-osk, #network, #pulseaudio, #battery {
-    font-family: "Font Awesome 6 Free";
+    font-family: "Font Awesome 7 Free", "Font Awesome 6 Free";
     font-weight: 900;
 }
 #custom-start, #custom-search {

@@ -52,7 +52,7 @@ gnome-themes-extra
 noto-fonts
 noto-fonts-emoji
 ttf-dejavu
-ttf-font-awesome
+otf-font-awesome
 grim
 slurp
 wl-clipboard
@@ -62,7 +62,7 @@ lxtask
 firefox
 mpv
 yt-dlp
-pcmanfm-gtk3
+pcmanfm
 gvfs
 imv
 mousepad
